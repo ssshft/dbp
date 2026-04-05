@@ -1,0 +1,10 @@
+<pairlist>
+	<pair>
+		<ID>0</ID>
+		<enable>1</enable>
+		<name>BINANCE.USDT_SWAP.BTC-USDT|GATEIO.USDT_SWAP.BTC-USDT</name>
+		<activemultiply>1</activemultiply>
+		<passivemultiply>1</passivemultiply>
+		<delayintvel>500</delayintvel>
+	</pair>
+</pairlist>

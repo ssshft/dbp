@@ -1,0 +1,33 @@
+
+{
+  "tag": "dbprocess",
+  "log": {
+      "level": "info",
+      "log_path": "/logs"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 9379,
+    "password":"refZa2KcTj$QjyXk"
+  },
+  "dbprocess": {
+    "version": 20230223,
+    "mpath": "/dev/shm/DBP_TOPIC_20230223",
+    "dpath": "/dev/shm/DBP_DATAS_20230223",
+    "topiclen": 100,
+    "skipdata": 1,
+    "stematime": 30000,
+    "tematime": 30000,
+    "maxmintime": 30000,
+    "timsspan": 5,
+    "marketype": 3,
+    "checkspan": 30,
+    "delayintvel": 500,
+    "spreadtype": 0,
+    "spreadcalctype": 0,
+    "spreaddrive": 1,
+    "pairlistfile": "/mnt/hft/dbp/etc/pairlist.xml",
+    "submkttypes": "DEPTH1|FUNDING_RATE",
+    "dbptopicidfile": "/mnt/hft/dbp/etc/dbptopicid.csv"
+  }
+}

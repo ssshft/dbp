@@ -1,0 +1,20 @@
+
+{
+  "tag": "dbpsnapshot",
+  "log": {
+      "level": "info",
+      "log_path": "/logs"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 9379,
+    "password":"refZa2KcTj$QjyXk"
+  },
+  "dbpsnapshot": {
+    "version": 20230223,
+    "mpath": "/dev/shm/DBP_TOPIC_20230223",
+    "dpath": "/dev/shm/DBP_DATAS_20230223",
+    "pubchannel": "DBPSNAPSHOT_1",
+    "spansecond": 5
+  }
+}

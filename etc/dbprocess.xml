@@ -1,0 +1,20 @@
+<dbprocess>
+    <tag>dbprocess</tag>
+    <version> 20230223 </version>
+    <mpath>/dev/shm/DBP_TOPIC_20230223</mpath>
+    <dpath>/dev/shm/DBP_DATAS_20230223</dpath>
+    <topiclen>100</topiclen>
+    <skipdata>1</skipdata>
+    <stematime>30000</stematime>
+    <tematime>30000</tematime>
+    <maxmintime>30000</maxmintime>
+    <timsspan>5</timsspan>
+    <marketype>3</marketype>
+    <checkspan>30</checkspan>
+    <spreadtype>0</spreadtype>
+    <spreadcalctype>0</spreadcalctype>
+    <spreaddrive>1</spreaddrive>   
+    <pairlistfile>pairlist.xml</pairlistfile>
+    <submkttypes>DEPTH1|FUNDING_RATE|TRADES</submkttypes>
+    <bindcpu>5</bindcpu>
+</dbprocess>

@@ -1,0 +1,7 @@
+<dbsource>
+    <version> 20230327 </version>
+    <mpath>/dev/shm/DBS_TOPIC_20230223</mpath>
+    <dpath>/dev/shm/DBS_DATAS_20230223</dpath>
+    <exchlistfile>exchlist.xml</exchlistfile>
+    <topiclen>50000</topiclen>
+</dbsource> 
