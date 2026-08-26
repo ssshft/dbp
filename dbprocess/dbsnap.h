@@ -103,7 +103,6 @@ namespace dbp{
         bool update_by_depth1(BestPxState& px, const md::CryptoMarketData& cmd, bool isActive) {
             bool updated = false;
             auto& d = cmd.body.depth1;
-            std::cout << "update_by_depth1 " << d.instId << std::endl;
 
             if (d.tsTrans <= px.depthUs || d.ap1 <= d.bp1 || d.av1 <= 0 || d.bp1 <= 0) {
                 return updated;
@@ -139,7 +138,6 @@ namespace dbp{
             }
 
             updated = true;
-            std::cout << "update depth1 success" << std::endl;
             return updated;
         }
 

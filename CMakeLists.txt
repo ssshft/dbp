@@ -65,6 +65,7 @@ link_directories(
 link_libraries(
         pthread
         boost_system 
+        cpprest
         crypto 
         ssl 
         z 

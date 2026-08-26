@@ -7,6 +7,7 @@ namespace sp
     const uint32_t ROW_SIZE = 500;
 
     const uint32_t COL_NAME_LEN = 128;
+    const uint32_t KEY_NAME_LEN = 60;
 
      struct RowNodeBase{
         uint64_t __updatestamp{0};

@@ -12,7 +12,7 @@
     <marketype>3</marketype>
     <checkspan>30</checkspan>
     <spreadtype>0</spreadtype>
-    <spreadcalctype>0</spreadcalctype>
+    <spreadcalctype>1</spreadcalctype>
     <spreaddrive>1</spreaddrive>   
     <pairlistfile>pairlist.xml</pairlistfile>
     <submkttypes>DEPTH1|FUNDING_RATE|TRADES</submkttypes>

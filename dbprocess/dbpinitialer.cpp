@@ -140,6 +140,8 @@ int main(int argc, char* argv[])
                 }
 
                 strncpy(mb.__name, name.c_str(), sp::COL_NAME_LEN);
+                strncpy(mb.activeInstrumentKey, result[0].c_str(), sp::KEY_NAME_LEN);
+                strncpy(mb.passiveInstrumentKey, result[1].c_str(), sp::KEY_NAME_LEN);
                 mb.__bufsize = topiclen;
                 mb.activeMultiply = v.second.get<uint32_t>("activemultiply");
                 mb.passiveMultiply = v.second.get<uint32_t>("passivemultiply");
