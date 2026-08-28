@@ -73,7 +73,7 @@ namespace dbp {
         void Run() {
             try
             {
-                long lastUpdateTime = crypto::getCurrentTimeSeconds();
+                int64_t lastUpdateTime = crypto::getCurrentTimeSeconds();
 
                 sp::Reader<dbp::DbpTopic,dbp::DbpData> reader(mpath, dpath, dbp::DBP_COL_SIZE);
                 auto ColumnCount = reader.ColumnCount();
@@ -142,7 +142,7 @@ namespace dbp {
                     }
 
 
-                    long currentTime = crypto::getCurrentTimeSeconds();
+                    int64_t currentTime = crypto::getCurrentTimeSeconds();
                     if (currentTime - lastUpdateTime > 60) {
                         lastUpdateTime = currentTime;
                         if (reader.UpdateByHeader()) {

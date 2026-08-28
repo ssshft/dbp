@@ -27,8 +27,8 @@ namespace dbp {
     };
 
     struct DbpTopic : sp::CNB {
-        char activeInstumentKey[KEY_NAME_LEN];
-        char passiveInstumentKey[KEY_NAME_LEN];
+        char activeInstrumentKey[sp::KEY_NAME_LEN];
+        char passiveInstrumentKey[sp::KEY_NAME_LEN];
 
         int activeDepth1DBWID{-1};
         int activeFundingRateDBWID{-1};

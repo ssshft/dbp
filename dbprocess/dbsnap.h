@@ -14,16 +14,16 @@ namespace dbp{
         double bp1{0};
         double av1{0};
         double bv1{0};
-        long depthUs{0};
+        int64_t depthUs{0};
 
         double tradesBuyPrice{0};
         double tradesSellPrice{0};
         double tradesBuyUs{0};
         double tradesSellUs{0};
 
-        long ts{0};
-        long exchActiveTradeDelay{0};
-        long exchPassiveTradeDelay{0};
+        int64_t ts{0};
+        int64_t exchActiveTradeDelay{0};
+        int64_t exchPassiveTradeDelay{0};
     };
 
     

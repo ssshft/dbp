@@ -373,7 +373,7 @@ namespace dbp {
         while (1) {
             sleep(10);
 
-            long currentTime = crypto::getCurrentTimeSeconds();
+            int64_t currentTime = crypto::getCurrentTimeSeconds();
             if (currentTime - lastReadTime > 5 * 60) {
                 lastReadTime = currentTime;
 
@@ -456,7 +456,7 @@ namespace dbp {
             }
 
 
-            long currentTime = crypto::getCurrentTimeSeconds();
+            int64_t currentTime = crypto::getCurrentTimeSeconds();
             if (currentTime - lastUpdateTime > 60) {
                 lastUpdateTime = currentTime;
 
