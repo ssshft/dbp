@@ -335,12 +335,9 @@ namespace dbp{
                 }
             }
 
-            std::cout << "Fetch and commit mnodeid: " << topic->__mnodeid << std::endl;
             auto _data = writer->Fetch(topic->__mnodeid);
             memcpy(_data,&data,sizeof(DbpData));
             writer->Commit(topic->__mnodeid);
-
-            std::cout << "_data " << _data->passiveBidPrice[0] << std::endl;
         }
 
 
