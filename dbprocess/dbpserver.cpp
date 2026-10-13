@@ -414,7 +414,7 @@ namespace dbp {
         md::CryptoMarketData cmd;
         while (1) {
             for (auto& suber : suberDepth) {
-                bool mdPop = suber->tryPopLatest(tcmd.body.depth1);
+                bool mdPop = suber->tryPopLatest(cmd.body.depth1);
                 if (mdPop) {
                     cmd.header.marketTypeEnum = md::DEPTH1;
                     cmd.header.exchangeTypeEnum = cmd.body.depth1.exchangeTypeEnum;
@@ -428,7 +428,7 @@ namespace dbp {
             }
 
             for (auto& suber : suberTrades) {
-                bool mdPop = suber->tryPopLatest(tcmd.body.trades);
+                bool mdPop = suber->tryPopLatest(cmd.body.trades);
                 if (mdPop) {
                     cmd.header.marketTypeEnum = md::TRADES;
                     cmd.header.exchangeTypeEnum = cmd.body.trades.exchangeTypeEnum;
