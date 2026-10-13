@@ -3,13 +3,12 @@
 #include "dbp/include.h"
 #include <set>
 #include <thread>
-#include "shm_spmc_queue.h"
+#include "shm_global.h"
 #include "concurrent_queue.h"
 #include "key_util.h"
 #include "log_engine.h"
 #include "config.h"
 #include "program_util.h"
-
 #include <sys/resource.h>
 #include <sched.h>
 #include <unistd.h>
@@ -71,8 +70,8 @@ namespace dbp{
         std::vector<md::MarketType> vMarketType;
         std::unordered_map<std::string, int> mTopicId;
 
-        std::vector<pubsub::SPMCSubscriber<md::Depth1>> suberDepth;
-        std::vector<pubsub::SPMCSubscriber<md::Trades>> suberTrades;
-        std::vector<pubsub::SPMCSubscriber<md::FundingRate>> suberFunding;
+        std::vector<std::shared_ptr<Depth1Spmc>> suberDepth;
+        std::vector<std::shared_ptr<TradesSpmc>> suberTrades;
+        std::vector<std::shared_ptr<FundingRateSpmc>> suberFunding;
     };
 }

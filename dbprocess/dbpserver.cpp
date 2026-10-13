@@ -164,8 +164,8 @@ namespace dbp {
             std::string marketTypeStr = result[result.size() - 1];
             if (marketTypeStr == "DEPTH1") {
                 try {
-                    pubsub::SPMCSubscriber<md::Depth1> depthSuber(channel.c_str());
-                    suberDepth.push_back(depthSuber);
+                    std::shared_ptr<Depth1Spmc> suber = std::make_shared<Depth1Spmc>(channel);
+                    suberDepth.push_back(suber);
                 }
                 catch (const std::exception& e) {
                     std::cerr << "depthSuber error: " << e.what() << " channel: " << channel << std::endl;
@@ -173,7 +173,7 @@ namespace dbp {
             }
             else if (marketTypeStr == "FUNDING_RATE") {
                 try {
-                    pubsub::SPMCSubscriber<md::FundingRate> fundingSuber(channel.c_str());
+                    std::shared_ptr<FundingRateSpmc> fundingSuber = std::make_shared<FundingRateSpmc>(channel);
                     suberFunding.push_back(fundingSuber);
                 }
                 catch (const std::exception& e) {
@@ -182,7 +182,7 @@ namespace dbp {
             }
             else if (marketTypeStr == "TRADES") {
                 try {
-                    pubsub::SPMCSubscriber<md::Trades> tradesSuber(channel.c_str());
+                    std::shared_ptr<TradesSpmc> tradesSuber = std::make_shared<TradesSpmc>(channel);
                     suberTrades.push_back(tradesSuber);
                 }
                 catch (const std::exception& e) {
@@ -414,7 +414,7 @@ namespace dbp {
         md::CryptoMarketData cmd;
         while (1) {
             for (auto& suber : suberDepth) {
-                bool mdPop = suber.pop_last(cmd.body.depth1);
+                bool mdPop = suber->tryPopLatest(tcmd.body.depth1);
                 if (mdPop) {
                     cmd.header.marketTypeEnum = md::DEPTH1;
                     cmd.header.exchangeTypeEnum = cmd.body.depth1.exchangeTypeEnum;
@@ -428,7 +428,7 @@ namespace dbp {
             }
 
             for (auto& suber : suberTrades) {
-                bool mdPop = suber.pop_last(cmd.body.trades);
+                bool mdPop = suber->tryPopLatest(tcmd.body.trades);
                 if (mdPop) {
                     cmd.header.marketTypeEnum = md::TRADES;
                     cmd.header.exchangeTypeEnum = cmd.body.trades.exchangeTypeEnum;
@@ -442,7 +442,7 @@ namespace dbp {
             }
 
             for (auto& suber : suberFunding) {
-                bool mdPop = suber.pop_last(cmd.body.fundingRate);
+                bool mdPop = suber->tryPopLatest(cmd.body.fundingRate);
                 if (mdPop) {
                     cmd.header.marketTypeEnum = md::FUNDING_RATE;
                     cmd.header.exchangeTypeEnum = cmd.body.fundingRate.exchangeTypeEnum;
@@ -494,7 +494,7 @@ namespace dbp {
 
                                     if (vMarketType[t] == md::DEPTH1) {
                                         try {
-                                            pubsub::SPMCSubscriber<md::Depth1> depthSuber(activeChannel.c_str());
+                                            std::shared_ptr<Depth1Spmc> depthSuber = std::make_shared<Depth1Spmc>(activeChannel);
                                             suberDepth.push_back(depthSuber);
 
                                             auto db = new DbSnap();
@@ -507,7 +507,7 @@ namespace dbp {
                                     }
                                     else if (vMarketType[t] == md::FUNDING_RATE && res1[1] != "SPOT") {
                                         try {
-                                            pubsub::SPMCSubscriber<md::FundingRate> fundingSuber(activeChannel.c_str());
+                                            std::shared_ptr<FundingRateSpmc> fundingSuber = std::make_shared<FundingRateSpmc>(activeChannel);
                                             suberFunding.push_back(fundingSuber);
 
                                             auto db = new DbSnap();
@@ -520,7 +520,7 @@ namespace dbp {
                                     }
                                     else if (vMarketType[t] == md::TRADES) {
                                         try {
-                                            pubsub::SPMCSubscriber<md::Trades> tradesSuber(activeChannel.c_str());
+                                            std::shared_ptr<TradesSpmc> tradesSuber = std::make_shared<TradesSpmc>(activeChannel);
                                             suberTrades.push_back(tradesSuber);
 
                                             auto db = new DbSnap();
@@ -554,7 +554,7 @@ namespace dbp {
 
                                     if (vMarketType[t] == md::DEPTH1) {
                                         try {
-                                            pubsub::SPMCSubscriber<md::Depth1> depthSuber(passiveChannel.c_str());
+                                            std::shared_ptr<Depth1Spmc> depthSuber = std::make_shared<Depth1Spmc>(passiveChannel);
                                             suberDepth.push_back(depthSuber);
 
                                             auto db = new DbSnap();
@@ -567,7 +567,7 @@ namespace dbp {
                                     }
                                     else if (vMarketType[t] == md::FUNDING_RATE && res2[1] != "SPOT") {
                                         try {
-                                            pubsub::SPMCSubscriber<md::FundingRate> fundingSuber(passiveChannel.c_str());
+                                            std::shared_ptr<FundingRateSpmc> fundingSuber = std::make_shared<FundingRateSpmc>(passiveChannel);
                                             suberFunding.push_back(fundingSuber);
 
                                             auto db = new DbSnap();
@@ -580,7 +580,7 @@ namespace dbp {
                                     }
                                     else if (vMarketType[t] == md::TRADES) {
                                         try {
-                                            pubsub::SPMCSubscriber<md::Trades> tradesSuber(passiveChannel.c_str());
+                                            std::shared_ptr<TradesSpmc> tradesSuber = std::make_shared<TradesSpmc>(passiveChannel);
                                             suberTrades.push_back(tradesSuber);
 
                                             auto db = new DbSnap();

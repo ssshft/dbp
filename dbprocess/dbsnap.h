@@ -194,7 +194,7 @@ namespace dbp{
                 bActive = (topicId == topic->activeDepth1DBWID);
             }
             else if (d.header.marketTypeEnum == md::TRADES) {
-                bActive = (topicId == topic->passiveDepth1DBWID);
+                bActive = (topicId == topic->activeTradesDBWID);
             }
             else {
                 return;
