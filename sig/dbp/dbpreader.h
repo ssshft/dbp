@@ -43,7 +43,8 @@ namespace dbp {
             }
         }
 
-        void FetchLast(){
+        bool FetchLast() {
+            bool res = false;
             static DbpData* data{nullptr};
             static DbpTopic* topic{nullptr};
             static uint32_t jumppednum = 0;
@@ -57,9 +58,11 @@ namespace dbp {
                 if (jumppednum > 0){
                     topic = spreader.GetColumnbyID(iter->first);
                     _dbpcallback(topic, data, jumppednum);
+                    res = true;
                 }
                 ++iter;
             }
+            return res;
         }
 
         void FetchNext(){

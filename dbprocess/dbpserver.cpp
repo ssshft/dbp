@@ -1,4 +1,5 @@
 #include <dbprocess/dbpserver.h>
+#include "SpinBackoff.h"
 
 
 namespace dbp {
@@ -413,9 +414,11 @@ namespace dbp {
         std::string symbolStr;
         md::CryptoMarketData cmd;
         while (1) {
+            bool idle = true;
             for (auto& suber : suberDepth) {
                 bool mdPop = suber->tryPopLatest(cmd.body.depth1);
                 if (mdPop) {
+                    idle = false;
                     cmd.header.marketTypeEnum = md::DEPTH1;
                     cmd.header.exchangeTypeEnum = cmd.body.depth1.exchangeTypeEnum;
                     cmd.header.instTypeEnum = cmd.body.depth1.instTypeEnum;
@@ -430,6 +433,7 @@ namespace dbp {
             for (auto& suber : suberTrades) {
                 bool mdPop = suber->tryPopLatest(cmd.body.trades);
                 if (mdPop) {
+                    idle = false;
                     cmd.header.marketTypeEnum = md::TRADES;
                     cmd.header.exchangeTypeEnum = cmd.body.trades.exchangeTypeEnum;
                     cmd.header.instTypeEnum = cmd.body.trades.instTypeEnum;
@@ -444,6 +448,7 @@ namespace dbp {
             for (auto& suber : suberFunding) {
                 bool mdPop = suber->tryPopLatest(cmd.body.fundingRate);
                 if (mdPop) {
+                    idle = false;
                     cmd.header.marketTypeEnum = md::FUNDING_RATE;
                     cmd.header.exchangeTypeEnum = cmd.body.fundingRate.exchangeTypeEnum;
                     cmd.header.instTypeEnum = cmd.body.fundingRate.instTypeEnum;
@@ -663,6 +668,10 @@ namespace dbp {
                         }
                     }
                 }
+            }
+
+            if (idle) {
+                spin::cpu_relax();  
             }
         }
     }
