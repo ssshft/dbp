@@ -334,7 +334,7 @@ namespace sp
             return pnext;
         }
 
-        void Commit(uint32_t mnodeid){
+        void Commit(uint32_t mnodeid, uint64_t updatestamp = 0){ // us
             CNB* pmhead = static_cast<CNB*>(this->GetColumnbyID(mnodeid));
             if (!pmhead){
                 string s = "Get nullptr pointer, mnodeid: " + mnodeid;
@@ -343,7 +343,9 @@ namespace sp
             auto pdhead = this->pheaddata + pmhead->__buffrom;            
             auto pnext = pdhead + (pmhead->__datacount%pmhead->__bufsize);
             auto pnextbase = (RNB*)(pnext);
-            pnextbase->__updatestamp = high_resolution_clock::now().time_since_epoch().count();
+            if (updatestamp != 0) {
+                pnextbase->__updatestamp = updatestamp;
+            }
             pnextbase->__wflag = 'F';
             pmhead->__datacount += 1;
         }

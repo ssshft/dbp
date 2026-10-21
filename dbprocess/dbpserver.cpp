@@ -52,7 +52,7 @@ namespace dbp {
 
         std::string maxmS = "";
         if (config->get_dbprocess_config("maxmintime", maxmS)) {
-            maxmintime = std::stoi(temaS);
+            maxmintime = std::stoi(maxmS);
         } 
 
         std::string timsS = "";

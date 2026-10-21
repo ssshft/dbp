@@ -217,7 +217,7 @@ namespace dbp{
                 return;
             }
 
-            auto curtime = high_resolution_clock::now().time_since_epoch().count()/1000;
+            const int64_t curtime = std::chrono::system_clock::now().time_since_epoch().count() / 1000; // us
             auto calctema = [&](const double spread,double& _data){      
                 if (data.generateTs == 0 || (topic->stematime < curtime - data.generateTs)) {
                     _data = spread;
@@ -318,7 +318,7 @@ namespace dbp{
                 calcminmax(data.spreadAskAsk,spreadMin[3],spreadMax[3]);
             }
 
-            data.generateTs =  high_resolution_clock::now().time_since_epoch().count()/1000;
+            data.generateTs = curtime;
             if ((data.generateTs - resetts > topic->maxmintime) && updated) {
                 resetts = data.generateTs;
                 data.spreadBidAskMax = spreadMax[0];
@@ -337,7 +337,8 @@ namespace dbp{
 
             auto _data = writer->Fetch(topic->__mnodeid);
             memcpy(_data,&data,sizeof(DbpData));
-            writer->Commit(topic->__mnodeid);
+            // 单位是 µs，与 DbpData::generateTs 同域同单位（原来是裸 tick，差 1000 倍）。
+            writer->Commit(topic->__mnodeid, static_cast<uint64_t>(curtime));
         }
 
 
