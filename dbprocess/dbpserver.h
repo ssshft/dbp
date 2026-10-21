@@ -70,8 +70,15 @@ namespace dbp{
         std::vector<md::MarketType> vMarketType;
         std::unordered_map<std::string, int> mTopicId;
 
-        std::vector<std::shared_ptr<Depth1Spmc>> suberDepth;
-        std::vector<std::shared_ptr<TradesSpmc>> suberTrades;
-        std::vector<std::shared_ptr<FundingRateSpmc>> suberFunding;
+        // 一个行情订阅者 + 它在 dbp 里对应的 topicId。
+        template <typename SpmcT>
+        struct MdSub {
+            std::shared_ptr<SpmcT> suber;
+            int topicId{-1};
+        };
+
+        std::vector<MdSub<Depth1Spmc>>      suberDepth;
+        std::vector<MdSub<TradesSpmc>>      suberTrades;
+        std::vector<MdSub<FundingRateSpmc>> suberFunding;
     };
 }

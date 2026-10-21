@@ -13,6 +13,7 @@
 #   ./run.sh spmc     ShmSpmcQueue（行情发布实际在用的那套，seqlock + popLatest O(1)）
 #   ./run.sh slim     载荷 600 → 344 B 的收益（8 个 [5] 数组只用 [0]）
 #   ./run.sh topicid  Execute 热路径：拼 key / find / 自带 id / 时钟读取（不需要桩）
+#   ./run.sh hotadd   热加对子的不变式：snaps.size() == snapscount（不需要桩）
 #   ./run.sh crash    「第 501 个对子 SIGSEGV」复现（预期 exit 139）
 #   ./run.sh all      全部跑一遍
 set -euo pipefail
@@ -51,6 +52,11 @@ case "$MODE" in
         # 这个不依赖任何 dbp 头，单独编就行（不用 COMMON 里的 -I/-include）
         "$CXX" -std=c++17 -O2 -w -o "$OUT/bench_topicid" "$HERE/bench_topicid.cpp" \
             && "$OUT/bench_topicid"
+        ;;
+    hotadd)
+        # 同上，纯 std，不依赖 dbp 头
+        "$CXX" -std=c++17 -O1 -w -o "$OUT/hotadd_check" "$HERE/hotadd_check.cpp" \
+            && "$OUT/hotadd_check"
         ;;
     crash)
         build crash_test.cpp crash_test

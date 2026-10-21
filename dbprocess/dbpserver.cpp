@@ -9,17 +9,17 @@ namespace dbp {
     }
 
     DbpServer::~DbpServer() {
-        for (uint32_t i=0; i < snapscount; ++i ){
+        for (size_t i = 0; i < snaps.size(); ++i) {
             delete snaps[i];
             snaps[i] = nullptr;
-        }     
+        }
         snaps.clear();
 
-        for (uint32_t i=0; i < dbspdscount; ++i ){
+        for (size_t i = 0; i < dbspds.size(); ++i) {
             delete dbspds[i];
             dbspds[i] = nullptr;
-        }   
-        dbspds.clear();   
+        }
+        dbspds.clear();
     }
 
     bool DbpServer::PreStart(Config* config) {
@@ -152,6 +152,17 @@ namespace dbp {
 
         LOG_INFO("db snapscount: {}", snapscount);
 
+        // 校验 mTopicId 里的 id 恰好是 0..snapscount-1 的一个排列。
+        std::vector<char> seen(snapscount, 0);
+        for (const auto& kv : mTopicId) {
+            if (kv.second < 0 || static_cast<uint32_t>(kv.second) >= snapscount || seen[kv.second]) {
+                LOG_ERROR("dbptopicid file corrupted: channel {} -> id {}, snapscount {}, dup or out of range. "
+                            "delete {} and the shm files to rebuild", kv.first, kv.second, snapscount, dbptopicidfile);
+                return false;
+            }
+            seen[kv.second] = 1;
+        }
+
         snaps.resize(snapscount);
         for (uint32_t i = 0; i < snapscount; ++i) {
             snaps[i] = new DbSnap();
@@ -159,14 +170,14 @@ namespace dbp {
 
         for (auto iter = mTopicId.begin(); iter != mTopicId.end(); ++iter) {
             std::string channel = iter->first;
+            const int topicId = iter->second;
+
             std::vector<std::string> result;
             boost::split(result, channel, boost::is_any_of("."));
-
             std::string marketTypeStr = result[result.size() - 1];
             if (marketTypeStr == "DEPTH1") {
                 try {
-                    std::shared_ptr<Depth1Spmc> suber = std::make_shared<Depth1Spmc>(channel);
-                    suberDepth.push_back(suber);
+                    suberDepth.push_back({std::make_shared<Depth1Spmc>(channel), topicId});
                 }
                 catch (const std::exception& e) {
                     std::cerr << "depthSuber error: " << e.what() << " channel: " << channel << std::endl;
@@ -174,8 +185,7 @@ namespace dbp {
             }
             else if (marketTypeStr == "FUNDING_RATE") {
                 try {
-                    std::shared_ptr<FundingRateSpmc> fundingSuber = std::make_shared<FundingRateSpmc>(channel);
-                    suberFunding.push_back(fundingSuber);
+                    suberFunding.push_back({std::make_shared<FundingRateSpmc>(channel), topicId});
                 }
                 catch (const std::exception& e) {
                     std::cerr << "fundingSuber error: " << e.what() << " channel: " << channel << std::endl;
@@ -183,8 +193,7 @@ namespace dbp {
             }
             else if (marketTypeStr == "TRADES") {
                 try {
-                    std::shared_ptr<TradesSpmc> tradesSuber = std::make_shared<TradesSpmc>(channel);
-                    suberTrades.push_back(tradesSuber);
+                    suberTrades.push_back({std::make_shared<TradesSpmc>(channel), topicId});
                 }
                 catch (const std::exception& e) {
                     std::cerr << "tradesSuber error: " << e.what() << " channel: " << channel << std::endl;
@@ -198,7 +207,14 @@ namespace dbp {
         dbspdscount = writer->ColumnCount();
 
         LOG_INFO("dbspdscount: {}", dbspdscount);
- 
+
+        // 共享内存里已有的列数不能超过 CSV 里登记的 channel 数。
+        if (dbspdscount > snapscount) {
+            LOG_ERROR("shm has {} columns but dbptopicid only has {} channels. "
+                      "delete {} and the shm files to rebuild", dbspdscount, snapscount, dbptopicidfile);
+            return false;
+        }
+
         dbspds.resize(dbspdscount);
 
         for (uint32_t i = 0; i < dbspdscount; ++i) {
@@ -415,49 +431,31 @@ namespace dbp {
         md::CryptoMarketData cmd;
         while (1) {
             bool idle = true;
-            for (auto& suber : suberDepth) {
-                bool mdPop = suber->tryPopLatest(cmd.body.depth1);
-                if (mdPop) {
-                    idle = false;
-                    cmd.header.marketTypeEnum = md::DEPTH1;
-                    cmd.header.exchangeTypeEnum = cmd.body.depth1.exchangeTypeEnum;
-                    cmd.header.instTypeEnum = cmd.body.depth1.instTypeEnum;
-                    strncpy(cmd.header.instId, cmd.body.depth1.instId, INSTID_SIZE);
-
-                    const std::string& channel = crypto::get_md_channel_key(cmd.header.exchangeTypeEnum, cmd.header.instTypeEnum, md::DEPTH1, cmd.header.instId);
-                    int topicId = mTopicId[channel];
-                    snaps[topicId]->Update(cmd, topicId);
+            for (auto& sub : suberDepth) {
+                if (!sub.suber->tryPopLatest(cmd.body.depth1)) {
+                    continue;
                 }
+                idle = false;
+                cmd.header.marketTypeEnum = md::DEPTH1;
+                snaps[sub.topicId]->Update(cmd, sub.topicId);
             }
 
-            for (auto& suber : suberTrades) {
-                bool mdPop = suber->tryPopLatest(cmd.body.trades);
-                if (mdPop) {
-                    idle = false;
-                    cmd.header.marketTypeEnum = md::TRADES;
-                    cmd.header.exchangeTypeEnum = cmd.body.trades.exchangeTypeEnum;
-                    cmd.header.instTypeEnum = cmd.body.trades.instTypeEnum;
-                    strncpy(cmd.header.instId, cmd.body.trades.instId, INSTID_SIZE);
-
-                    const std::string& channel = crypto::get_md_channel_key(cmd.header.exchangeTypeEnum, cmd.header.instTypeEnum, md::TRADES, cmd.header.instId);
-                    int topicId = mTopicId[channel];
-                    snaps[topicId]->Update(cmd, topicId);
+            for (auto& sub : suberTrades) {
+                if (!sub.suber->tryPopLatest(cmd.body.trades)) {
+                    continue;
                 }
+                idle = false;
+                cmd.header.marketTypeEnum = md::TRADES;
+                snaps[sub.topicId]->Update(cmd, sub.topicId);
             }
 
-            for (auto& suber : suberFunding) {
-                bool mdPop = suber->tryPopLatest(cmd.body.fundingRate);
-                if (mdPop) {
-                    idle = false;
-                    cmd.header.marketTypeEnum = md::FUNDING_RATE;
-                    cmd.header.exchangeTypeEnum = cmd.body.fundingRate.exchangeTypeEnum;
-                    cmd.header.instTypeEnum = cmd.body.fundingRate.instTypeEnum;
-                    strncpy(cmd.header.instId, cmd.body.fundingRate.instId, INSTID_SIZE);
-
-                    const std::string& channel = crypto::get_md_channel_key(cmd.header.exchangeTypeEnum, cmd.header.instTypeEnum, md::FUNDING_RATE, cmd.header.instId);
-                    int topicId = mTopicId[channel];
-                    snaps[topicId]->Update(cmd, topicId);
+            for (auto& sub : suberFunding) {
+                if (!sub.suber->tryPopLatest(cmd.body.fundingRate)) {
+                    continue;
                 }
+                idle = false;
+                cmd.header.marketTypeEnum = md::FUNDING_RATE;
+                snaps[sub.topicId]->Update(cmd, sub.topicId);
             }
 
 
@@ -488,124 +486,83 @@ namespace dbp {
                         if (res1.size() >= 3 && res2.size() >= 3) {
                             DbpTopic mb;
                             bool updated = true;
+
+                            // 给一个 channel 备好"订阅者 + 快照 + topicId"，返回它的 topicId。
+                            // 返回 -1 有两种情况：① 这个 channel 不需要快照（现货腿的资金费率）；
+                            // ② 建订阅者失败（此时已置 updated = false）。
+                            // 调用方不用单独判断
+                            auto ensureChannel = [&](const std::string& channel, md::MarketType mt, bool isSpotLeg) -> int {
+                                auto it = mTopicId.find(channel);
+                                if (it != mTopicId.end()) {
+                                    return it->second;
+                                }
+
+                                const bool wantSnap = (mt == md::DEPTH1) || (mt == md::FUNDING_RATE && !isSpotLeg) || (mt == md::TRADES);
+                                if (!wantSnap) {
+                                    // 关键：**先判断要不要建快照，再决定占不占 topicId**。
+                                    return -1;
+                                }
+
+                                const int topicId = static_cast<int>(snapscount);
+                                bool ok = false;
+                                try {
+                                    if (mt == md::DEPTH1) {
+                                        suberDepth.push_back({std::make_shared<Depth1Spmc>(channel), topicId});
+                                        ok = true;
+                                    }
+                                    else if (mt == md::FUNDING_RATE) {
+                                        suberFunding.push_back({std::make_shared<FundingRateSpmc>(channel), topicId});
+                                        ok = true;
+                                    }
+                                    else if (mt == md::TRADES) {
+                                        suberTrades.push_back({std::make_shared<TradesSpmc>(channel), topicId});
+                                        ok = true;
+                                    }
+                                }
+                                catch (const std::exception& e) {
+                                    LOG_ERROR("create subscriber failed: {} channel: {}", e.what(), channel);
+                                }
+
+                                if (!ok) {
+                                    updated = false;
+                                    return -1;
+                                }
+
+                                snaps.push_back(new DbSnap());
+                                snapscount = static_cast<uint32_t>(snaps.size());
+                                mTopicId[channel] = topicId;
+                                return topicId;
+                            };
+
+                            const bool activeSpot  = (res1[1] == "SPOT");
+                            const bool passiveSpot = (res2[1] == "SPOT");
+
                             for (auto t = 0; t < vMarketType.size(); ++t) {
-                                std::string activeChannel = result[0] + "." + md::MarketTypeEnum2StrMap[vMarketType[t]];
+                                const md::MarketType mt = vMarketType[t];
+                                const std::string marketTypeStr = md::MarketTypeEnum2StrMap[mt];
 
-                                auto itActive = mTopicId.find(activeChannel);
-                                if (itActive == mTopicId.end()) {
-                                    int topicId = snapscount;
-                                    mTopicId[activeChannel] = topicId;
-                                    snapscount += 1;
-
-                                    if (vMarketType[t] == md::DEPTH1) {
-                                        try {
-                                            std::shared_ptr<Depth1Spmc> depthSuber = std::make_shared<Depth1Spmc>(activeChannel);
-                                            suberDepth.push_back(depthSuber);
-
-                                            auto db = new DbSnap();
-                                            snaps.push_back(db);
-                                        }
-                                        catch (const std::exception& e) {
-                                            std::cerr << "depthSuber error: " << e.what() << " channel: " << activeChannel << std::endl;
-                                            updated = false;
-                                        }
-                                    }
-                                    else if (vMarketType[t] == md::FUNDING_RATE && res1[1] != "SPOT") {
-                                        try {
-                                            std::shared_ptr<FundingRateSpmc> fundingSuber = std::make_shared<FundingRateSpmc>(activeChannel);
-                                            suberFunding.push_back(fundingSuber);
-
-                                            auto db = new DbSnap();
-                                            snaps.push_back(db);
-                                        }
-                                        catch (const std::exception& e) {
-                                            std::cerr << "fundingSuber error: " << e.what() << " channel: " << activeChannel << std::endl;
-                                            updated = false;
-                                        }
-                                    }
-                                    else if (vMarketType[t] == md::TRADES) {
-                                        try {
-                                            std::shared_ptr<TradesSpmc> tradesSuber = std::make_shared<TradesSpmc>(activeChannel);
-                                            suberTrades.push_back(tradesSuber);
-
-                                            auto db = new DbSnap();
-                                            snaps.push_back(db);
-                                        }
-                                        catch (const std::exception& e) {
-                                            std::cerr << "tradesSuber error: " << e.what() << " channel: " << activeChannel << std::endl;
-                                            updated = false;
-                                        }
-                                    }
-
+                                // 返回值不判 -1：
+                                const int activeId = ensureChannel(result[0] + "." + marketTypeStr, mt, activeSpot);
+                                if (mt == md::DEPTH1) {
+                                    mb.activeDepth1DBWID = activeId;
                                 }
-
-                                if (vMarketType[t] == md::DEPTH1) {
-                                    mb.activeDepth1DBWID = mTopicId[activeChannel];
+                                else if (mt == md::FUNDING_RATE && !activeSpot) {
+                                    mb.activeFundingRateDBWID = activeId;
                                 }
-                                else if (vMarketType[t] == md::FUNDING_RATE && res1[1] != "SPOT") {
-                                    mb.activeFundingRateDBWID = mTopicId[activeChannel];
-                                }
-                                else if (vMarketType[t] == md::TRADES) {
-                                    mb.activeTradesDBWID = mTopicId[activeChannel];
+                                else if (mt == md::TRADES) {
+                                    mb.activeTradesDBWID = activeId;
                                 }
 
 
-                                std::string passiveChannel = result[1] + "." + md::MarketTypeEnum2StrMap[vMarketType[t]];
-                                auto itPassive = mTopicId.find(passiveChannel);
-                                if (itPassive == mTopicId.end()) {
-                                    int topicId = snapscount;
-                                    mTopicId[passiveChannel] = topicId;
-                                    snapscount += 1;
-
-                                    if (vMarketType[t] == md::DEPTH1) {
-                                        try {
-                                            std::shared_ptr<Depth1Spmc> depthSuber = std::make_shared<Depth1Spmc>(passiveChannel);
-                                            suberDepth.push_back(depthSuber);
-
-                                            auto db = new DbSnap();
-                                            snaps.push_back(db);
-                                        }
-                                        catch (const std::exception& e) {
-                                            std::cerr << "depthSuber error: " << e.what() << " channel: " << passiveChannel << std::endl;
-                                            updated = false;
-                                        }
-                                    }
-                                    else if (vMarketType[t] == md::FUNDING_RATE && res2[1] != "SPOT") {
-                                        try {
-                                            std::shared_ptr<FundingRateSpmc> fundingSuber = std::make_shared<FundingRateSpmc>(passiveChannel);
-                                            suberFunding.push_back(fundingSuber);
-
-                                            auto db = new DbSnap();
-                                            snaps.push_back(db);
-                                        }
-                                        catch (const std::exception& e) {
-                                            std::cerr << "fundingSuber error: " << e.what() << " channel: " << passiveChannel << std::endl;
-                                            updated = false;
-                                        }
-                                    }
-                                    else if (vMarketType[t] == md::TRADES) {
-                                        try {
-                                            std::shared_ptr<TradesSpmc> tradesSuber = std::make_shared<TradesSpmc>(passiveChannel);
-                                            suberTrades.push_back(tradesSuber);
-
-                                            auto db = new DbSnap();
-                                            snaps.push_back(db);
-                                        }
-                                        catch (const std::exception& e) {
-                                            std::cerr << "tradesSuber error: " << e.what() << " channel: " << passiveChannel << std::endl;
-                                            updated = false;
-                                        }
-                                    }
+                                const int passiveId = ensureChannel(result[1] + "." + marketTypeStr, mt, passiveSpot);
+                                if (mt == md::DEPTH1) {
+                                    mb.passiveDepth1DBWID = passiveId;
                                 }
-
-                                if (vMarketType[t] == md::DEPTH1) {
-                                    mb.passiveDepth1DBWID = mTopicId[passiveChannel];
+                                else if (mt == md::FUNDING_RATE && !passiveSpot) {
+                                    mb.passiveFundingRateDBWID = passiveId;
                                 }
-                                else if (vMarketType[t] == md::FUNDING_RATE && res2[1] != "SPOT") {
-                                    mb.passiveFundingRateDBWID = mTopicId[passiveChannel];
-                                }
-                                else if (vMarketType[t] == md::TRADES) {
-                                    mb.passiveTradesDBWID = mTopicId[passiveChannel];
+                                else if (mt == md::TRADES) {
+                                    mb.passiveTradesDBWID = passiveId;
                                 }
                             }
 
