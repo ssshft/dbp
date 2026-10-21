@@ -15,6 +15,7 @@
 #   ./run.sh topicid  Execute 热路径：拼 key / find / 自带 id / 时钟读取（不需要桩）
 #   ./run.sh hotadd   热加对子的不变式：snaps.size() == snapscount（不需要桩）
 #   ./run.sh crash    「第 501 个对子 SIGSEGV」复现（预期 exit 139）
+#   ./run.sh empty    「启动时 0 个对子、之后热加」的 SIGSEGV 复现（预期 exit 139）
 #   ./run.sh all      全部跑一遍
 set -euo pipefail
 
@@ -66,6 +67,14 @@ case "$MODE" in
         echo "EXIT=$?"
         exit 0
         ;;
+    empty)
+        build empty_test.cpp empty_test
+        echo "--- 预期在「第 1 列看起来写成功」之后、加第 2 列时 SIGSEGV（exit 139）---"
+        set +e
+        "$OUT/empty_test"
+        echo "EXIT=$?"
+        exit 0
+        ;;
     all)
         for m in base spmc slim; do
             echo "================ $m ================"
@@ -80,10 +89,15 @@ case "$MODE" in
         set +e
         "$OUT/crash_test"
         echo "EXIT=$?"
+        echo "================ empty ================"
+        build empty_test.cpp empty_test
+        set +e
+        "$OUT/empty_test"
+        echo "EXIT=$?"
         exit 0
         ;;
     *)
-        echo "未知参数: $MODE（可用: base|spmc|slim|crash|all）" >&2
+        echo "未知参数: $MODE（可用: base|spmc|slim|topicid|hotadd|crash|empty|all）" >&2
         exit 2
         ;;
 esac
