@@ -16,6 +16,19 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 add_definitions(-DUSE_INFO_SHM)
 
+# 延时统计（../include/hft_metrics.h）的编译期开关。**默认关**。
+#   cmake .. && make            → 关（宏展开成空，热路径零残留、不建 metrics 文件）
+#   cmake -DHFT_METRICS=ON ..   → 开
+#
+# dbp 的埋点比 db 便宜：热路径上只有 dbp.sweep / dbp.pair 两个 1/16 采样的段
+# 和几个 dbp.skip.* 计数器（≈2 ns）。一轮扫描几百 ns，1/16 采样摊下来 <1%。
+option(HFT_METRICS "编译延时统计埋点（hft_metrics.h）" OFF)
+if(HFT_METRICS)
+    add_definitions(-DHFT_METRICS_ENABLED=1)
+else()
+    add_definitions(-DHFT_METRICS_ENABLED=0)
+endif()
+
 #include
 set(INC_DIR              ${CMAKE_CURRENT_SOURCE_DIR}/sig)
 set(SYSTEM_INC_DIR          ../include)

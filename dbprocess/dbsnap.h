@@ -3,6 +3,7 @@
 #include <dbp/include.h>
 #include <dbw/include.h>
 #include <sig/shmpool/shmpool.h>
+#include "hft_metrics.h"
 
 #define SPREAD_MAX  999999999
 #define SPREAD_MIN  -999999999
@@ -104,7 +105,16 @@ namespace dbp{
             bool updated = false;
             auto& d = cmd.body.depth1;
 
-            if (d.tsTrans <= px.depthUs || d.ap1 <= d.bp1 || d.av1 <= 0 || d.bp1 <= 0) {
+            // 原来是一个合并的 if，拆成两条只为分开计数：
+            //   stale   = 乱序/重复帧（tsTrans 不比上一条新）—— 行情本来就允许乱序，属正常
+            //   invalid = 数据本身不合法（买一 >= 卖一、量 <= 0）
+            // 两种都是"这一帧白跑"。占比高要么说明上游推的东西有问题，要么说明过滤太松。
+            if (d.tsTrans <= px.depthUs) {
+                HFT_CNT("dbp.skip.depth1.stale");
+                return updated;
+            }
+            if (d.ap1 <= d.bp1 || d.av1 <= 0 || d.bp1 <= 0) {
+                HFT_CNT("dbp.skip.depth1.invalid");
                 return updated;
             }
 
@@ -145,7 +155,11 @@ namespace dbp{
             bool updated = false;
             auto& t = cmd.body.trades;
 
+            // 三个 return 都记同一个名字（registry 按名字去重，不会变成三个指标）：
+            // 它数的是"这笔成交没有触发价格更新"，不管是因为数据不合法、方向不对，
+            // 还是因为成交时间没新过已有的成交。
             if (t.tsTrans <= 0 || t.sz <= 0 || t.px <= 0) {
+                HFT_CNT("dbp.skip.trades");
                 return updated;
             }
 
@@ -164,10 +178,12 @@ namespace dbp{
                     }
                 }
                 else {
+                    HFT_CNT("dbp.skip.trades");
                     return updated;
                 }
             }
             else {
+                HFT_CNT("dbp.skip.trades");
                 return updated;
             }
 
@@ -217,6 +233,10 @@ namespace dbp{
                 return;
             }
 
+            // 单个 pair 的一次重算，一直算到函数末尾的 Fetch+memcpy+Commit。
+            // **1/16 采样**：实测这一段只有 ~22 ns，而 HFT_SCOPE 的固定开销是 36 ns
+            // —— 比被测对象还长，量出来全是开销。采样版固定开销 2.2 ns。
+            HFT_SCOPE_SAMPLED("dbp.pair", 16);
             const int64_t curtime = std::chrono::system_clock::now().time_since_epoch().count() / 1000; // us
             auto calctema = [&](const double spread,double& _data){      
                 if (data.generateTs == 0 || (topic->stematime < curtime - data.generateTs)) {

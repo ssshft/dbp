@@ -1,5 +1,6 @@
 #include <dbprocess/dbpserver.h>
 #include "SpinBackoff.h"
+#include "hft_metrics.h"
 
 
 namespace dbp {
@@ -431,31 +432,42 @@ namespace dbp {
         md::CryptoMarketData cmd;
         while (1) {
             bool idle = true;
-            for (auto& sub : suberDepth) {
-                if (!sub.suber->tryPopLatest(cmd.body.depth1)) {
-                    continue;
+            {
+                // 一轮扫描（三个 suber 全部走完）的耗时 —— dbp 的 CPU 基本全花在这，
+                // 而且它跟订阅者数量成正比、跟行情量无关。
+                //
+                // 只包这三个 for：下面 60 s 那块一进来就是文件 I/O（AddNewColumn / 写 CSV），
+                // 包进来会把直方图尾巴打歪，而它一周也未必跑一次。
+                //
+                // 用 1/16 采样而不是 HFT_SCOPE：一轮扫描只有几百 ns，HFT_SCOPE 的 36 ns
+                // 固定开销会吃掉 5~10%；采样版固定开销 2.2 ns。
+                HFT_SCOPE_SAMPLED("dbp.sweep", 16);
+                for (auto& sub : suberDepth) {
+                    if (!sub.suber->tryPopLatest(cmd.body.depth1)) {
+                        continue;
+                    }
+                    idle = false;
+                    cmd.header.marketTypeEnum = md::DEPTH1;
+                    snaps[sub.topicId]->Update(cmd, sub.topicId);
                 }
-                idle = false;
-                cmd.header.marketTypeEnum = md::DEPTH1;
-                snaps[sub.topicId]->Update(cmd, sub.topicId);
-            }
 
-            for (auto& sub : suberTrades) {
-                if (!sub.suber->tryPopLatest(cmd.body.trades)) {
-                    continue;
+                for (auto& sub : suberTrades) {
+                    if (!sub.suber->tryPopLatest(cmd.body.trades)) {
+                        continue;
+                    }
+                    idle = false;
+                    cmd.header.marketTypeEnum = md::TRADES;
+                    snaps[sub.topicId]->Update(cmd, sub.topicId);
                 }
-                idle = false;
-                cmd.header.marketTypeEnum = md::TRADES;
-                snaps[sub.topicId]->Update(cmd, sub.topicId);
-            }
 
-            for (auto& sub : suberFunding) {
-                if (!sub.suber->tryPopLatest(cmd.body.fundingRate)) {
-                    continue;
+                for (auto& sub : suberFunding) {
+                    if (!sub.suber->tryPopLatest(cmd.body.fundingRate)) {
+                        continue;
+                    }
+                    idle = false;
+                    cmd.header.marketTypeEnum = md::FUNDING_RATE;
+                    snaps[sub.topicId]->Update(cmd, sub.topicId);
                 }
-                idle = false;
-                cmd.header.marketTypeEnum = md::FUNDING_RATE;
-                snaps[sub.topicId]->Update(cmd, sub.topicId);
             }
 
 
@@ -628,6 +640,9 @@ namespace dbp {
             }
 
             if (idle) {
+                // 空转轮数。和 dbp.sweep 的 count 一比就是空转率，
+                // 再乘上扫描频率就是"这个核有多少时间在纯扫、什么也没收到"。
+                HFT_CNT("dbp.sweep.idle");
                 spin::cpu_relax();  
             }
         }
