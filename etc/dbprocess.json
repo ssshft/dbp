@@ -28,6 +28,7 @@
     "spreaddrive": 1,
     "pairlistfile": "/mnt/hft/dbp/etc/pairlist.xml",
     "submkttypes": "DEPTH1|FUNDING_RATE",
-    "dbptopicidfile": "/mnt/hft/dbp/etc/dbptopicid.csv"
+    "dbptopicidfile": "/mnt/hft/dbp/etc/dbptopicid.csv",
+    "cpuexecute": -1
   }
 }

@@ -59,6 +59,9 @@ namespace dbp{
         std::string submkttypes{""};
         std::string dbptopicidfile;
 
+        // 线程绑核：只给**需要独占**的线程开键，-1 = 不绑。
+        int cpuExecute{-1};
+
         sp::Writer<DbpTopic, DbpData>* writer;
         sp::Reader<dbw::DBTopic, dbw::DBdata>* reader;
 

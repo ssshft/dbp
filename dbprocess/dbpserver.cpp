@@ -125,6 +125,12 @@ namespace dbp {
             started = false;
         } 
 
+        // ---- 线程绑核（可选，缺省 -1 = 不绑）----
+        std::string cpuExe = "";
+        if (config->get_dbprocess_config("cpuexecute", cpuExe)) {
+            cpuExecute = std::stoi(cpuExe);
+        } 
+
         LOG_INFO("version: {}", version);
         LOG_INFO("mpath: {}", mpath);
         LOG_INFO("dpath: {}", dpath);
@@ -142,6 +148,7 @@ namespace dbp {
         LOG_INFO("pairlistfile: {}", pairlistfile);
         LOG_INFO("submkttypes: {}", submkttypes);
         LOG_INFO("dbptopicidfile: {}", dbptopicidfile);
+        LOG_INFO("cpu pin: execute={} (-1 = not pinned)", cpuExecute);
 
         lastReadTime = crypto::getCurrentTimeSeconds();
         lastUpdateTime = crypto::getCurrentTimeSeconds();
@@ -428,6 +435,10 @@ namespace dbp {
     }
 
     void DbpServer::Execute() {
+        if (cpuExecute >= 0 && crypto::set_cpu_self(cpuExecute) != 0) {
+            LOG_ERROR("dbp Execute: pin to core {} failed, running unpinned", cpuExecute);
+        }
+
         std::string symbolStr;
         md::CryptoMarketData cmd;
         while (1) {
