@@ -26,9 +26,9 @@
     "spreadtype": 0,
     "spreadcalctype": 0,
     "spreaddrive": 1,
-    "pairlistfile": "/mnt/hft/dbp/etc/pairlist.xml",
+    "pairlistfile": "/root/hft/dbp/etc/pairlist.xml",
     "submkttypes": "DEPTH1|FUNDING_RATE",
-    "dbptopicidfile": "/mnt/hft/dbp/etc/dbptopicid.csv",
+    "dbptopicidfile": "/root/hft/dbp/etc/dbptopicid.csv",
     "cpuexecute": -1
   }
 }
